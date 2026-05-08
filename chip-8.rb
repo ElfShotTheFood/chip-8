@@ -116,6 +116,11 @@ class Chip8App
     @stack_view.editable = false
     @stack_view.cursor_visible = false
     style_textview(@stack_view, bg_color)
+    # Add margin inside the frame (5px on all sides)
+    @stack_view.set_margin_start(5)
+    @stack_view.set_margin_end(5)
+    @stack_view.set_margin_top(5)
+    @stack_view.set_margin_bottom(5)
     stack_frame.add(@stack_view)
     info_hbox.pack_start(stack_frame, expand: true, fill: true, padding: 5)
 
@@ -125,6 +130,11 @@ class Chip8App
     @memory_view.editable = false
     @memory_view.cursor_visible = false
     style_textview(@memory_view, bg_color)
+    # Add margin inside the frame (5px on all sides)
+    @memory_view.set_margin_start(5)
+    @memory_view.set_margin_end(5)
+    @memory_view.set_margin_top(5)
+    @memory_view.set_margin_bottom(5)
     memory_frame.add(@memory_view)
     info_hbox.pack_start(memory_frame, expand: true, fill: true, padding: 5)
 
@@ -134,6 +144,11 @@ class Chip8App
     @trace_view.editable = false
     @trace_view.cursor_visible = false
     style_textview(@trace_view, bg_color)
+    # Add margin inside the frame (5px on all sides)
+    @trace_view.set_margin_start(5)
+    @trace_view.set_margin_end(5)
+    @trace_view.set_margin_top(5)
+    @trace_view.set_margin_bottom(5)
     trace_frame.add(@trace_view)
     info_hbox.pack_start(trace_frame, expand: true, fill: true, padding: 5)
 
@@ -142,6 +157,11 @@ class Chip8App
     display_frame = create_bold_frame('Display')
     @drawing_area = Gtk::DrawingArea.new
     @drawing_area.set_size_request(@vm.window_width, @vm.window_height)
+    # Add margin inside the frame (5px on all sides)
+    @drawing_area.set_margin_start(5)
+    @drawing_area.set_margin_end(5)
+    @drawing_area.set_margin_top(5)
+    @drawing_area.set_margin_bottom(5)
     # Connect draw signal
     @drawing_area.signal_connect('draw') { |area, cr| on_draw_display(area, cr) }
     display_frame.add(@drawing_area)
