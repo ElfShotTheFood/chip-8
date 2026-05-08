@@ -66,12 +66,15 @@ class Chip8App
     info_hbox = Gtk::Box.new(:horizontal, 5)
     main_vbox.pack_start(info_hbox, expand: true, fill: true, padding: 5)
 
+    # Get the background color from the window for matching
+    bg_color = @window.style_context.get_background_color(Gtk::StateFlags::NORMAL)
+
     # ----- Registers Group -----
     registers_frame = Gtk::Frame.new('Registers')
     @registers_view = Gtk::TextView.new
     @registers_view.editable = false
     @registers_view.cursor_visible = false
-    set_monospace_font(@registers_view)
+    style_textview(@registers_view, bg_color)
     registers_frame.add(@registers_view)
     info_hbox.pack_start(registers_frame, expand: true, fill: true, padding: 5)
 
@@ -80,7 +83,7 @@ class Chip8App
     @stack_view = Gtk::TextView.new
     @stack_view.editable = false
     @stack_view.cursor_visible = false
-    set_monospace_font(@stack_view)
+    style_textview(@stack_view, bg_color)
     stack_frame.add(@stack_view)
     info_hbox.pack_start(stack_frame, expand: true, fill: true, padding: 5)
 
@@ -89,7 +92,7 @@ class Chip8App
     @memory_view = Gtk::TextView.new
     @memory_view.editable = false
     @memory_view.cursor_visible = false
-    set_monospace_font(@memory_view)
+    style_textview(@memory_view, bg_color)
     memory_frame.add(@memory_view)
     info_hbox.pack_start(memory_frame, expand: true, fill: true, padding: 5)
 
@@ -98,7 +101,7 @@ class Chip8App
     @trace_view = Gtk::TextView.new
     @trace_view.editable = false
     @trace_view.cursor_visible = false
-    set_monospace_font(@trace_view)
+    style_textview(@trace_view, bg_color)
     trace_frame.add(@trace_view)
     info_hbox.pack_start(trace_frame, expand: true, fill: true, padding: 5)
 
@@ -114,10 +117,12 @@ class Chip8App
     update_info_panels
   end
 
-  # Helper to set Consolas monospace font on a textview
-  def set_monospace_font(textview)
+  # Helper to set Consolas monospace font and match background on a textview
+  def style_textview(textview, bg_color)
     font_desc = Pango::FontDescription.new('Consolas 10')
     textview.override_font(font_desc)
+    # Set background to match main window using override_background_color
+    textview.override_background_color(Gtk::StateFlags::NORMAL, bg_color)
   end
 
   # ==================== BUTTON HANDLERS ====================
