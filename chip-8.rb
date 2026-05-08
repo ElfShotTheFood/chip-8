@@ -30,7 +30,7 @@ class Chip8App
     @window.add(main_vbox)
 
     # ==================== CONTROL GROUP ====================
-    control_frame = Gtk::Frame.new('Control')
+    control_frame = create_bold_frame('Control')
     control_box = Gtk::Box.new(:horizontal, 5)
     control_frame.add(control_box)
 
@@ -38,29 +38,25 @@ class Chip8App
     @stop_button = Gtk::Button.new(label: 'STOP')
     @step_button = Gtk::Button.new(label: 'SINGLE STEP')
     @reset_button = Gtk::Button.new(label: 'RESET')
+    @load_rom_button = Gtk::Button.new(label: 'LOAD ROM')
+    @save_rom_button = Gtk::Button.new(label: 'SAVE ROM')
 
     # Connect button signals
     @run_button.signal_connect('clicked') { |_| on_run_clicked }
     @stop_button.signal_connect('clicked') { |_| on_stop_clicked }
     @step_button.signal_connect('clicked') { |_| on_step_clicked }
     @reset_button.signal_connect('clicked') { |_| on_reset_clicked }
+    @load_rom_button.signal_connect('clicked') { |_| on_load_rom_clicked }
+    @save_rom_button.signal_connect('clicked') { |_| on_save_rom_clicked }
 
     control_box.pack_start(@run_button, expand: true, fill: true, padding: 5)
     control_box.pack_start(@stop_button, expand: true, fill: true, padding: 5)
     control_box.pack_start(@step_button, expand: true, fill: true, padding: 5)
     control_box.pack_start(@reset_button, expand: true, fill: true, padding: 5)
+    control_box.pack_start(@load_rom_button, expand: true, fill: true, padding: 5)
+    control_box.pack_start(@save_rom_button, expand: true, fill: true, padding: 5)
 
     main_vbox.pack_start(control_frame, expand: false, fill: false, padding: 5)
-
-    # ==================== DISPLAY AREA ====================
-    # Create a drawing area for the CHIP-8 display
-    display_frame = Gtk::Frame.new('Display')
-    @drawing_area = Gtk::DrawingArea.new
-    @drawing_area.set_size_request(@vm.window_width, @vm.window_height)
-    # Connect draw signal
-    @drawing_area.signal_connect('draw') { |area, cr| on_draw_display(area, cr) }
-    display_frame.add(@drawing_area)
-    main_vbox.pack_start(display_frame, expand: false, fill: false, padding: 5)
 
     # ==================== INFO GROUPS (SIDE BY SIDE) ====================
     info_hbox = Gtk::Box.new(:horizontal, 5)
@@ -70,7 +66,7 @@ class Chip8App
     bg_color = @window.style_context.get_background_color(Gtk::StateFlags::NORMAL)
 
     # ----- Registers Group -----
-    registers_frame = Gtk::Frame.new('Registers')
+    registers_frame = create_bold_frame('Registers')
     @registers_view = Gtk::TextView.new
     @registers_view.editable = false
     @registers_view.cursor_visible = false
@@ -79,7 +75,7 @@ class Chip8App
     info_hbox.pack_start(registers_frame, expand: true, fill: true, padding: 5)
 
     # ----- Stack Group -----
-    stack_frame = Gtk::Frame.new('Stack')
+    stack_frame = create_bold_frame('Stack')
     @stack_view = Gtk::TextView.new
     @stack_view.editable = false
     @stack_view.cursor_visible = false
@@ -88,7 +84,7 @@ class Chip8App
     info_hbox.pack_start(stack_frame, expand: true, fill: true, padding: 5)
 
     # ----- Memory Group -----
-    memory_frame = Gtk::Frame.new('Memory')
+    memory_frame = create_bold_frame('Memory')
     @memory_view = Gtk::TextView.new
     @memory_view.editable = false
     @memory_view.cursor_visible = false
@@ -97,13 +93,23 @@ class Chip8App
     info_hbox.pack_start(memory_frame, expand: true, fill: true, padding: 5)
 
     # ----- Trace Group -----
-    trace_frame = Gtk::Frame.new('Trace')
+    trace_frame = create_bold_frame('Trace')
     @trace_view = Gtk::TextView.new
     @trace_view.editable = false
     @trace_view.cursor_visible = false
     style_textview(@trace_view, bg_color)
     trace_frame.add(@trace_view)
     info_hbox.pack_start(trace_frame, expand: true, fill: true, padding: 5)
+
+    # ==================== DISPLAY AREA ====================
+    # Create a drawing area for the CHIP-8 display (below info groups)
+    display_frame = create_bold_frame('Display')
+    @drawing_area = Gtk::DrawingArea.new
+    @drawing_area.set_size_request(@vm.window_width, @vm.window_height)
+    # Connect draw signal
+    @drawing_area.signal_connect('draw') { |area, cr| on_draw_display(area, cr) }
+    display_frame.add(@drawing_area)
+    main_vbox.pack_start(display_frame, expand: false, fill: false, padding: 5)
 
     # Status bar at bottom
     @status_bar = Gtk::Label.new('Ready')
@@ -115,6 +121,15 @@ class Chip8App
     # Initial update
     update_display
     update_info_panels
+  end
+
+  # Helper to create a Gtk::Frame with a bold label using Pango markup
+  def create_bold_frame(title)
+    frame = Gtk::Frame.new
+    label = Gtk::Label.new
+    label.set_markup("<b>#{title}</b>")
+    frame.set_label_widget(label)
+    frame
   end
 
   # Helper to set Consolas monospace font and match background on a textview
@@ -158,6 +173,100 @@ class Chip8App
     @status_bar.text = 'Reset complete'
     update_display
     update_info_panels
+  end
+
+  def on_load_rom_clicked
+    # Stop any running emulation
+    @running = false
+    @single_step_mode = false
+
+    # Open file chooser dialog
+    dialog = Gtk::FileChooserDialog.new(
+      title: 'Load ROM File',
+      parent: @window,
+      action: Gtk::FileChooserAction::OPEN,
+      buttons: [
+        ['Cancel', Gtk::ResponseType::CANCEL],
+        ['Open', Gtk::ResponseType::ACCEPT]
+      ]
+    )
+
+    # Set filter for binary files
+    filter = Gtk::FileFilter.new
+    filter.name = 'Binary Files (*.bin, *.rom)'
+    filter.add_pattern('*.bin')
+    filter.add_pattern('*.rom')
+    dialog.add_filter(filter)
+
+    # Also allow all files
+    all_filter = Gtk::FileFilter.new
+    all_filter.name = 'All Files'
+    all_filter.add_pattern('*')
+    dialog.add_filter(all_filter)
+
+    if dialog.run == Gtk::ResponseType::ACCEPT
+      filename = dialog.filename
+      begin
+        # Read binary file
+        rom_data = File.binread(filename).bytes
+        # Load ROM into VM (starts at 0x200 automatically)
+        @vm.load_rom(rom_data)
+        # Reset VM state but keep the loaded ROM
+        @vm.pc = 0x200
+        @status_bar.text = "Loaded ROM: #{File.basename(filename)} (#{rom_data.length} bytes)"
+        update_info_panels
+      rescue => e
+        @status_bar.text = "Error loading ROM: #{e.message}"
+      end
+    end
+
+    dialog.destroy
+  end
+
+  def on_save_rom_clicked
+    # Stop any running emulation
+    @running = false
+    @single_step_mode = false
+
+    # Open file chooser dialog
+    dialog = Gtk::FileChooserDialog.new(
+      title: 'Save ROM File',
+      parent: @window,
+      action: Gtk::FileChooserAction::SAVE,
+      buttons: [
+        ['Cancel', Gtk::ResponseType::CANCEL],
+        ['Save', Gtk::ResponseType::ACCEPT]
+      ]
+    )
+
+    # Set filter for binary files
+    filter = Gtk::FileFilter.new
+    filter.name = 'Binary Files (*.bin)'
+    filter.add_pattern('*.bin')
+    dialog.add_filter(filter)
+
+    if dialog.run == Gtk::ResponseType::ACCEPT
+      filename = dialog.filename
+      # Ensure .bin extension if not present
+      filename += '.bin' unless filename.end_with?('.bin', '.rom')
+      begin
+        # Save ROM area (0x200-0xFFF) to binary file
+        # Find last non-zero byte to minimize file size
+        rom_start = 0x200
+        rom_end = 4095  # Max memory size - 1
+        # Trim trailing zeros
+        while rom_end > rom_start && @vm.read(rom_end) == 0
+          rom_end -= 1
+        end
+        rom_data = @vm.read(rom_start, rom_end - rom_start + 1)
+        File.binwrite(filename, rom_data.pack('C*'))
+        @status_bar.text = "Saved ROM: #{File.basename(filename)} (#{rom_data.length} bytes)"
+      rescue => e
+        @status_bar.text = "Error saving ROM: #{e.message}"
+      end
+    end
+
+    dialog.destroy
   end
 
   # ==================== EMULATION LOOP ====================
