@@ -206,16 +206,16 @@ class Chip8App
 
   def update_registers_panel
     buffer = @registers_view.buffer
-    text = "V0-VF Registers:\n\n"
+    text = "Registers:\n\n"
+    # Order: PC (4-digit hex), I (4-digit hex), DT (2-digit), ST (2-digit), V0-VF (2-digit each)
+    text += "PC: #{@vm.pc.to_s(16).rjust(4, '0').upcase}\n"
+    text += "I:  #{@vm.i.to_s(16).rjust(4, '0').upcase}\n"
+    text += "DT: #{@vm.delay_timer.to_s(16).rjust(2, '0').upcase}\n"
+    text += "ST: #{@vm.sound_timer.to_s(16).rjust(2, '0').upcase}\n"
+    # Display V0-VF vertically (one per line)
     16.times do |i|
-      text += sprintf("V%X: 0x%02X  ", i, @vm.v[i])
-      text += "\n" if (i % 4 == 3)
+      text += sprintf("V%X: #{@vm.v[i].to_s(16).rjust(2, '0').upcase}\n", i)
     end
-    text += "\nI:  0x#{@vm.i.to_s(16).upcase}\n"
-    text += "PC: 0x#{@vm.pc.to_s(16).upcase}\n"
-    text += "SP: #{@vm.sp}\n"
-    text += "Delay: #{@vm.delay_timer}\n"
-    text += "Sound: #{@vm.sound_timer}"
     buffer.text = text
   end
 
@@ -244,10 +244,10 @@ class Chip8App
     text = "Instruction Trace:\n\n"
     # Show last few executed instructions (simplified)
     # In a full implementation, this would log executed opcodes
-    text += "PC: 0x#{@vm.pc.to_s(16).upcase}\n"
+    text += "PC: #{@vm.pc.to_s(16).rjust(4, '0').upcase}\n"
     if @vm.pc < 0xFFF
       next_instr = @vm.read_word(@vm.pc)
-      text += "Next: 0x#{next_instr.to_s(16).upcase}\n"
+      text += "Next: 0x#{next_instr.to_s(16).rjust(4, '0').upcase}\n"
     end
     buffer.text = text
   end
