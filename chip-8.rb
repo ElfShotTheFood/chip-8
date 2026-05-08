@@ -90,6 +90,11 @@ class Chip8App
     # ----- Registers Group -----
     registers_frame = create_bold_frame('Registers')
     @registers_container = Gtk::Box.new(:vertical, 3)  # Increased vertical spacing
+    # Add margin inside the frame (5px on all sides)
+    @registers_container.set_margin_start(5)
+    @registers_container.set_margin_end(5)
+    @registers_container.set_margin_top(5)
+    @registers_container.set_margin_bottom(5)
     registers_frame.add(@registers_container)
     info_hbox.pack_start(registers_frame, expand: true, fill: true, padding: 5)
 
@@ -97,7 +102,7 @@ class Chip8App
     @register_labels = {}
     # Order: PC, I, DT, ST, then V0-VF
     create_register_row('PC', @registers_container, bg_color)
-    create_register_row('I', @registers_container, bg_color)
+    create_register_row(' I', @registers_container, bg_color)  # Leading space for alignment
     create_register_row('DT', @registers_container, bg_color)
     create_register_row('ST', @registers_container, bg_color)
     # V0 through VF
@@ -368,7 +373,7 @@ class Chip8App
   def update_registers_panel
     # Update register value labels
     @register_labels[:PC].text = @vm.pc.to_s(16).rjust(4, '0').upcase
-    @register_labels[:I].text = @vm.i.to_s(16).rjust(4, '0').upcase
+    @register_labels[:" I"].text = @vm.i.to_s(16).rjust(4, '0').upcase
     @register_labels[:DT].text = @vm.delay_timer.to_s(16).rjust(2, '0').upcase
     @register_labels[:ST].text = @vm.sound_timer.to_s(16).rjust(2, '0').upcase
     # V0-VF
@@ -402,7 +407,7 @@ class Chip8App
     buffer = @trace_view.buffer
     text = "Instruction Trace:\n\n"
     # Show last few executed instructions (simplified)
-    # In a full implementation, this would log executed opcodes
+    # In a full implementation, would log executed opcodes
     text += "PC: #{@vm.pc.to_s(16).rjust(4, '0').upcase}\n"
     if @vm.pc < 0xFFF
       next_instr = @vm.read_word(@vm.pc)
