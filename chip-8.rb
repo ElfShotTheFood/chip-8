@@ -126,17 +126,24 @@ class Chip8App
 
     # ----- Memory Group -----
     memory_frame = create_bold_frame('Memory')
-    @memory_view = Gtk::TextView.new
-    @memory_view.editable = false
-    @memory_view.cursor_visible = false
-    style_textview(@memory_view, bg_color)
+    # Create scrollable window for memory
+    @memory_scrolled = Gtk::ScrolledWindow.new
+    @memory_container = Gtk::Box.new(:vertical, 3)  # Match registers spacing
     # Add margin inside the frame (5px on all sides)
-    @memory_view.set_margin_start(5)
-    @memory_view.set_margin_end(5)
-    @memory_view.set_margin_top(5)
-    @memory_view.set_margin_bottom(5)
-    memory_frame.add(@memory_view)
+    @memory_container.set_margin_start(5)
+    @memory_container.set_margin_end(5)
+    @memory_container.set_margin_top(5)
+    @memory_container.set_margin_bottom(5)
+    @memory_scrolled.add(@memory_container)
+    @memory_scrolled.set_policy(:automatic, :automatic)
+    memory_frame.add(@memory_scrolled)
     info_hbox.pack_start(memory_frame, expand: true, fill: true, padding: 5)
+
+    # Populate memory rows (even addresses from 0x200 to 0xFFE)
+    @memory_labels = {}
+    (0x200..0xFFE).step(2) do |addr|
+      create_memory_row(addr, @memory_container, bg_color)
+    end
 
     # ----- Trace Group -----
     trace_frame = create_bold_frame('Trace')
@@ -207,6 +214,28 @@ class Chip8App
 
     # Store reference to value label for updates
     @register_labels[name.to_sym] = value_label
+  end
+
+  # Helper to create a memory row with address and word value labels
+  def create_memory_row(addr, container, bg_color)
+    hbox = Gtk::Box.new(:horizontal, 3)  # Match register row spacing
+    hbox.set_spacing(3)  # Match register row spacing
+
+    # Address label with light blue rounded background (similar to registers)
+    addr_label = Gtk::Label.new(sprintf("0x%04X", addr))  # Removed colon
+    addr_label.style_context.add_class('register-name-label')
+    hbox.pack_start(addr_label, expand: false, fill: false, padding: 2)
+
+    # Value label showing 2-byte word (will be updated)
+    word_value = @vm.read_word(addr)
+    value_label = Gtk::Label.new(sprintf("%04X", word_value))
+    value_label.style_context.add_class('register-value-label')
+    hbox.pack_start(value_label, expand: false, fill: false, padding: 2)
+
+    container.pack_start(hbox, expand: false, fill: false, padding: 2)  # Match register row padding
+
+    # Store reference for updates
+    @memory_labels[addr] = value_label
   end
 
   # Helper to set Consolas monospace font and match background on a textview
@@ -413,14 +442,11 @@ class Chip8App
   end
 
   def update_memory_panel
-    buffer = @memory_view.buffer
-    text = "Memory (0x200-0x20F):\n\n"
-    # Show first 16 bytes of ROM area
-    (0x200..0x20F).each do |addr|
-      value = @vm.read(addr)
-      text += sprintf("0x%03X: 0x%02X\n", addr, value)
+    # Update each memory row's value label
+    @memory_labels.each do |addr, label|
+      word_value = @vm.read_word(addr)
+      label.text = sprintf("%04X", word_value)
     end
-    buffer.text = text
   end
 
   def update_trace_panel
