@@ -25,6 +25,28 @@ class Chip8App
     @window.set_default_size(800, 600)
     @window.signal_connect('destroy') { |_| Gtk.main_quit }
 
+    # Create CSS provider for styling
+    css_provider = Gtk::CssProvider.new
+    css = <<~CSS
+      .register-name-label {
+        background-color: #ADD8E6;
+        border-radius: 4px;
+        padding: 2px 4px;
+        font-family: Consolas, monospace;
+        font-weight: bold;
+      }
+      .register-value-label {
+        font-family: Consolas, monospace;
+      }
+    CSS
+    css_provider.load_from_data(css)
+    # Use numeric priority (600 = GTK_STYLE_PROVIDER_PRIORITY_APPLICATION)
+    Gtk::StyleContext.add_provider_for_screen(
+      Gdk::Screen.default,
+      css_provider,
+      600
+    )
+
     # Main vertical box
     main_vbox = Gtk::Box.new(:vertical, 5)
     @window.add(main_vbox)
@@ -67,12 +89,21 @@ class Chip8App
 
     # ----- Registers Group -----
     registers_frame = create_bold_frame('Registers')
-    @registers_view = Gtk::TextView.new
-    @registers_view.editable = false
-    @registers_view.cursor_visible = false
-    style_textview(@registers_view, bg_color)
-    registers_frame.add(@registers_view)
+    @registers_container = Gtk::Box.new(:vertical, 3)  # Increased vertical spacing
+    registers_frame.add(@registers_container)
     info_hbox.pack_start(registers_frame, expand: true, fill: true, padding: 5)
+
+    # Create register labels (name + value pairs)
+    @register_labels = {}
+    # Order: PC, I, DT, ST, then V0-VF
+    create_register_row('PC', @registers_container, bg_color)
+    create_register_row('I', @registers_container, bg_color)
+    create_register_row('DT', @registers_container, bg_color)
+    create_register_row('ST', @registers_container, bg_color)
+    # V0 through VF
+    16.times do |i|
+      create_register_row("V#{i.to_s(16).upcase}", @registers_container, bg_color)
+    end
 
     # ----- Stack Group -----
     stack_frame = create_bold_frame('Stack')
@@ -130,6 +161,27 @@ class Chip8App
     label.set_markup("<b>#{title}</b>")
     frame.set_label_widget(label)
     frame
+  end
+
+  # Helper to create a register row with name and value labels
+  def create_register_row(name, container, bg_color)
+    hbox = Gtk::Box.new(:horizontal, 3)
+    hbox.set_spacing(3)
+
+    # Name label with light blue rounded background
+    name_label = Gtk::Label.new(name)
+    name_label.style_context.add_class('register-name-label')
+    hbox.pack_start(name_label, expand: false, fill: false, padding: 2)
+
+    # Value label (will be updated)
+    value_label = Gtk::Label.new('00')
+    value_label.style_context.add_class('register-value-label')
+    hbox.pack_start(value_label, expand: false, fill: false, padding: 2)
+
+    container.pack_start(hbox, expand: false, fill: false, padding: 2)
+
+    # Store reference to value label for updates
+    @register_labels[name.to_sym] = value_label
   end
 
   # Helper to set Consolas monospace font and match background on a textview
@@ -314,18 +366,16 @@ class Chip8App
   end
 
   def update_registers_panel
-    buffer = @registers_view.buffer
-    text = "Registers:\n\n"
-    # Order: PC (4-digit hex), I (4-digit hex), DT (2-digit), ST (2-digit), V0-VF (2-digit each)
-    text += "PC: #{@vm.pc.to_s(16).rjust(4, '0').upcase}\n"
-    text += "I:  #{@vm.i.to_s(16).rjust(4, '0').upcase}\n"
-    text += "DT: #{@vm.delay_timer.to_s(16).rjust(2, '0').upcase}\n"
-    text += "ST: #{@vm.sound_timer.to_s(16).rjust(2, '0').upcase}\n"
-    # Display V0-VF vertically (one per line)
+    # Update register value labels
+    @register_labels[:PC].text = @vm.pc.to_s(16).rjust(4, '0').upcase
+    @register_labels[:I].text = @vm.i.to_s(16).rjust(4, '0').upcase
+    @register_labels[:DT].text = @vm.delay_timer.to_s(16).rjust(2, '0').upcase
+    @register_labels[:ST].text = @vm.sound_timer.to_s(16).rjust(2, '0').upcase
+    # V0-VF
     16.times do |i|
-      text += sprintf("V%X: #{@vm.v[i].to_s(16).rjust(2, '0').upcase}\n", i)
+      reg_name = "V#{i.to_s(16).upcase}".to_sym
+      @register_labels[reg_name].text = @vm.v[i].to_s(16).rjust(2, '0').upcase
     end
-    buffer.text = text
   end
 
   def update_stack_panel
