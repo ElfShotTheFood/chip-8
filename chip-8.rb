@@ -112,17 +112,21 @@ class Chip8App
 
     # ----- Stack Group -----
     stack_frame = create_bold_frame('Stack')
-    @stack_view = Gtk::TextView.new
-    @stack_view.editable = false
-    @stack_view.cursor_visible = false
-    style_textview(@stack_view, bg_color)
+    # Create scrollable window for stack
+    @stack_scrolled = Gtk::ScrolledWindow.new
+    @stack_container = Gtk::Box.new(:vertical, 3)  # Match registers spacing
     # Add margin inside the frame (5px on all sides)
-    @stack_view.set_margin_start(5)
-    @stack_view.set_margin_end(5)
-    @stack_view.set_margin_top(5)
-    @stack_view.set_margin_bottom(5)
-    stack_frame.add(@stack_view)
+    @stack_container.set_margin_start(5)
+    @stack_container.set_margin_end(5)
+    @stack_container.set_margin_top(5)
+    @stack_container.set_margin_bottom(5)
+    @stack_scrolled.add(@stack_container)
+    @stack_scrolled.set_policy(:automatic, :automatic)
+    stack_frame.add(@stack_scrolled)
     info_hbox.pack_start(stack_frame, expand: true, fill: true, padding: 5)
+
+    # Create stack labels (will be populated in update_stack_panel)
+    @stack_labels = {}
 
     # ----- Memory Group -----
     memory_frame = create_bold_frame('Memory')
@@ -222,7 +226,7 @@ class Chip8App
     hbox.set_spacing(3)  # Match register row spacing
 
     # Address label with light blue rounded background (similar to registers)
-    addr_label = Gtk::Label.new(sprintf("0x%04X", addr))  # Removed colon
+    addr_label = Gtk::Label.new(sprintf("0x%04X", addr))  # No colon
     addr_label.style_context.add_class('register-name-label')
     hbox.pack_start(addr_label, expand: false, fill: false, padding: 2)
 
@@ -236,6 +240,35 @@ class Chip8App
 
     # Store reference for updates
     @memory_labels[addr] = value_label
+  end
+
+  # Helper to create a stack entry row with index and value labels
+  def create_stack_row(index, value, container, bg_color)
+    hbox = Gtk::Box.new(:horizontal, 3)  # Match register row spacing
+    hbox.set_spacing(3)
+
+    # Index label with light blue rounded background (similar to registers)
+    index_label = Gtk::Label.new(sprintf("[%02d]", index))
+    index_label.style_context.add_class('register-name-label')
+    hbox.pack_start(index_label, expand: false, fill: false, padding: 2)
+
+    # Value label showing 4-digit hex return address
+    value_label = Gtk::Label.new(sprintf("%04X", value))
+    value_label.style_context.add_class('register-value-label')
+    hbox.pack_start(value_label, expand: false, fill: false, padding: 2)
+
+    container.pack_start(hbox, expand: false, fill: false, padding: 2)
+
+    # Store reference for updates
+    @stack_labels[index] = value_label
+  end
+
+  # Helper to show "empty" message when stack has no entries
+  def show_empty_stack_message(container)
+    empty_label = Gtk::Label.new('empty')
+    empty_label.style_context.add_class('register-name-label')
+    container.pack_start(empty_label, expand: false, fill: false, padding: 2)
+    @stack_labels[:empty] = empty_label
   end
 
   # Helper to set Consolas monospace font and match background on a textview
@@ -433,12 +466,21 @@ class Chip8App
   end
 
   def update_stack_panel
-    buffer = @stack_view.buffer
-    text = "Stack (#{@vm.sp} entries):\n\n"
-    @vm.stack[0...@vm.sp].each_with_index do |value, index|
-      text += sprintf("[%02d] 0x%04X\n", index, value)
+    # Clear existing stack labels
+    @stack_labels.clear
+    @stack_container.children.each do |child|
+      @stack_container.remove(child)
     end
-    buffer.text = text
+
+    if @vm.sp == 0
+      # Show "empty" message
+      show_empty_stack_message(@stack_container)
+    else
+      # Create labels for each stack entry (from bottom to top)
+      @vm.stack[0...@vm.sp].each_with_index do |value, index|
+        create_stack_row(index, value, @stack_container, nil)
+      end
+    end
   end
 
   def update_memory_panel
@@ -457,7 +499,7 @@ class Chip8App
     text += "PC: #{@vm.pc.to_s(16).rjust(4, '0').upcase}\n"
     if @vm.pc < 0xFFF
       next_instr = @vm.read_word(@vm.pc)
-      text += "Next: 0x#{next_instr.to_s(16).rjust(4, '0').upcase}\n"
+      text += "Next: 0x#{next_instr.to_s(16).upcase}\n"
     end
     buffer.text = text
   end
